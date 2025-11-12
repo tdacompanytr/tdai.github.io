@@ -252,66 +252,129 @@ const App: React.FC = () => {
 
 
   const handleSendMessage = useCallback(async (prompt: string, file?: File | null) => {
-    // ... (rest of the function is unchanged)
-    if (!chat) {
-      setError("Chat session is not initialized.");
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
+    const lowerCasePrompt = prompt.toLowerCase();
+    const imageGenKeywords = ['çiz', 'resmet', 'resimle', 'görselleştir'];
+    const isImagePrompt = !file && imageGenKeywords.some(word => lowerCasePrompt.includes(word));
 
-    let fileData: FileData | undefined = undefined;
-    if (file) {
+    if (isImagePrompt) {
+        setIsLoading(true);
+        setError(null);
+
+        const userMessage: Message = { role: 'user', text: prompt };
+        setMessages(prevMessages => [...prevMessages, userMessage]);
+        setMessages(prevMessages => [...prevMessages, { role: 'model', text: '' }]); // For typing indicator
+
         try {
-            const base64 = await fileToBase64(file);
-            fileData = { base64, mimeType: file.type };
-        } catch (e) {
-            console.error(e);
-            setError("Failed to process the file.");
-            setIsLoading(false);
-            return;
-        }
-    }
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                contents: { parts: [{ text: prompt }] },
+                config: { responseModalities: [Modality.IMAGE] },
+            });
 
-    const userMessage: Message = { role: 'user', text: prompt, file: fileData };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    setMessages(prevMessages => [...prevMessages, { role: 'model', text: '' }]);
-
-    try {
-      const messageParts: (string | Part)[] = [{ text: prompt }];
-      if (fileData) {
-        messageParts.push({
-            inlineData: {
-                data: fileData.base64,
-                mimeType: fileData.mimeType,
+            let generatedImage: FileData | null = null;
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                    generatedImage = {
+                        base64: part.inlineData.data,
+                        mimeType: part.inlineData.mimeType,
+                    };
+                    break;
+                }
             }
-        });
-      }
 
-      const stream = await chat.sendMessageStream({ message: messageParts });
-      
-      let fullResponse = '';
-      for await (const chunk of stream) {
-        const chunkText = chunk.text;
-        fullResponse += chunkText;
-        setMessages(prevMessages => {
-          const newMessages = [...prevMessages];
-          newMessages[newMessages.length - 1].text = fullResponse;
-          return newMessages;
-        });
-      }
-    } catch (e: any) {
-      console.error(e);
-      const errorMessage = e.message || "An unexpected error occurred.";
-      setError(`Error: ${errorMessage}`);
-      setMessages(prevMessages => {
-          const newMessages = [...prevMessages];
-          newMessages[newMessages.length - 1].text = `Üzgünüm, bir hata oluştu: ${errorMessage}`;
-          return newMessages;
-        });
-    } finally {
-      setIsLoading(false);
+            if (generatedImage) {
+                setMessages(prevMessages => {
+                    const newMessages = [...prevMessages];
+                    newMessages[newMessages.length - 1] = {
+                        role: 'model',
+                        text: 'Elbette, işte istediğin görsel!',
+                        file: generatedImage,
+                    };
+                    return newMessages;
+                });
+            } else {
+                 const fallbackText = response.text || "Üzgünüm, bir görsel oluşturamadım ama belki başka bir şey deneyebiliriz?";
+                 setMessages(prevMessages => {
+                    const newMessages = [...prevMessages];
+                    newMessages[newMessages.length - 1].text = fallbackText;
+                    return newMessages;
+                });
+            }
+        } catch (e: any) {
+            console.error(e);
+            const errorMessage = e.message || "An unexpected error occurred.";
+            setError(`Error: ${errorMessage}`);
+            setMessages(prevMessages => {
+                const newMessages = [...prevMessages];
+                newMessages[newMessages.length - 1].text = `Üzgünüm, görsel oluşturulurken bir hata oluştu: ${errorMessage}`;
+                return newMessages;
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    } else {
+        // Standard chat logic
+        if (!chat) {
+          setError("Chat session is not initialized.");
+          return;
+        }
+        
+        setIsLoading(true);
+        setError(null);
+
+        let fileData: FileData | undefined = undefined;
+        if (file) {
+            try {
+                const base64 = await fileToBase64(file);
+                fileData = { base64, mimeType: file.type };
+            } catch (e) {
+                console.error(e);
+                setError("Failed to process the file.");
+                setIsLoading(false);
+                return;
+            }
+        }
+
+        const userMessage: Message = { role: 'user', text: prompt, file: fileData };
+        setMessages(prevMessages => [...prevMessages, userMessage]);
+        setMessages(prevMessages => [...prevMessages, { role: 'model', text: '' }]);
+
+        try {
+          const messageParts: (string | Part)[] = [{ text: prompt }];
+          if (fileData) {
+            messageParts.push({
+                inlineData: {
+                    data: fileData.base64,
+                    mimeType: fileData.mimeType,
+                }
+            });
+          }
+
+          const stream = await chat.sendMessageStream({ message: messageParts });
+          
+          let fullResponse = '';
+          for await (const chunk of stream) {
+            const chunkText = chunk.text;
+            fullResponse += chunkText;
+            setMessages(prevMessages => {
+              const newMessages = [...prevMessages];
+              newMessages[newMessages.length - 1].text = fullResponse;
+              return newMessages;
+            });
+          }
+        } catch (e: any) {
+          console.error(e);
+          const errorMessage = e.message || "An unexpected error occurred.";
+          setError(`Error: ${errorMessage}`);
+          setMessages(prevMessages => {
+              const newMessages = [...prevMessages];
+              newMessages[newMessages.length - 1].text = `Üzgünüm, bir hata oluştu: ${errorMessage}`;
+              return newMessages;
+            });
+        } finally {
+          setIsLoading(false);
+        }
     }
   }, [chat]);
 
