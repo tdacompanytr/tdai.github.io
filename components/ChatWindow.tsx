@@ -6,6 +6,7 @@ import { BotIcon } from './Icons';
 interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
+  isCallActive?: boolean;
 }
 
 const TypingIndicator: React.FC = () => (
@@ -21,7 +22,7 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isCallActive = false }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,10 +31,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
     }
   }, [messages, isLoading]);
 
+  const containerClasses = isCallActive
+    ? 'absolute bottom-0 left-0 right-0 p-4 md:p-6 space-y-6 max-h-[40%] bg-gradient-to-t from-black/80 to-transparent'
+    : 'p-4 md:p-6 space-y-6 h-full';
+
   return (
-    <div ref={scrollRef} className="p-4 md:p-6 space-y-6 h-full">
+    <div ref={scrollRef} className={`overflow-y-auto ${containerClasses}`}>
       {messages.map((msg, index) => (
-        <MessageBubble key={index} message={msg} />
+        <MessageBubble key={index} message={msg} isCallActive={isCallActive} />
       ))}
       {isLoading && <TypingIndicator />}
     </div>

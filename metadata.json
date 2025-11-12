@@ -1,6 +1,6 @@
 {
   "name": "Td AI",
-  "description": "A personal AI chatbot powered by Google Gemini. Engage in dynamic, real-time conversations with a sophisticated AI model.",
+  "description": "Google Gemini tarafından desteklenen kişisel bir yapay zeka sohbet robotu. Gelişmiş bir yapay zeka modeliyle dinamik, gerçek zamanlı sohbetlere katılın.",
   "requestFramePermissions": [
     "camera",
     "microphone"

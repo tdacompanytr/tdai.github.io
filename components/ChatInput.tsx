@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { SendIcon, PaperclipIcon, XIcon, MusicIcon } from './Icons';
 
@@ -5,9 +6,19 @@ interface ChatInputProps {
   onSendMessage: (prompt: string, file?: File | null) => void;
   isLoading: boolean;
   isCallActive: boolean;
+  placeholder: string;
+  attachFileLabel: string;
+  removeFileLabel: string;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isCallActive }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ 
+  onSendMessage, 
+  isLoading, 
+  isCallActive,
+  placeholder,
+  attachFileLabel,
+  removeFileLabel
+}) => {
   const [input, setInput] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -77,7 +88,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isCallA
           <button 
             onClick={handleRemoveFile} 
             className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full p-1 z-10 hover:bg-gray-700"
-            aria-label="Remove file"
+            aria-label={removeFileLabel}
             disabled={isDisabled}
           >
             <XIcon className="w-4 h-4" />
@@ -108,7 +119,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isCallA
           onClick={() => fileInputRef.current?.click()}
           disabled={isDisabled}
           className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 disabled:cursor-not-allowed transition-colors"
-          aria-label="Attach file"
+          aria-label={attachFileLabel}
         >
           <PaperclipIcon className="w-5 h-5" />
         </button>
@@ -117,7 +128,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isCallA
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isCallActive ? "Görüntülü görüşme aktif..." : "Mesajınızı buraya yazın..."}
+          placeholder={placeholder}
           rows={1}
           className="flex-1 bg-transparent p-2 text-white placeholder-gray-400 focus:outline-none resize-none max-h-40"
           disabled={isDisabled}

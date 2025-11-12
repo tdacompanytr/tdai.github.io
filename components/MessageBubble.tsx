@@ -4,6 +4,7 @@ import { UserIcon, BotIcon } from './Icons';
 
 interface MessageBubbleProps {
   message: Message;
+  isCallActive?: boolean;
 }
 
 const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
@@ -15,9 +16,9 @@ const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
   return (
     <div className="mt-2 rounded-lg overflow-hidden">
       {isImage ? (
-        <img src={src} alt="User upload" className="max-w-xs max-h-64 object-contain" />
+        <img src={src} alt="User upload" className="max-w-md max-h-[512px] object-contain" />
       ) : isVideo ? (
-        <video src={src} controls className="max-w-xs max-h-64" />
+        <video src={src} controls className="max-w-md max-h-[512px]" />
       ) : isAudio ? (
         <audio src={src} controls className="w-full max-w-xs" />
       ) : null}
@@ -25,7 +26,7 @@ const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
   );
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCallActive = false }) => {
   const isUser = message.role === 'user';
 
   // Basic markdown for code blocks
@@ -48,6 +49,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       return null;
   }
 
+  const userBubbleColor = isCallActive ? 'bg-red-700/80' : 'bg-red-700';
+  const modelBubbleColor = isCallActive ? 'bg-red-950/80' : 'bg-red-950';
+
   return (
     <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser ? 'bg-red-600' : 'bg-red-950'}`}>
@@ -56,8 +60,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       <div
         className={`max-w-xs md:max-w-md lg:max-w-2xl px-4 py-3 rounded-2xl ${
           isUser
-            ? 'bg-red-700 rounded-br-none'
-            : 'bg-red-950 rounded-bl-none'
+            ? `${userBubbleColor} rounded-br-none`
+            // Fix: Removed a stray single quote that was causing a syntax error.
+            : `${modelBubbleColor} rounded-bl-none`
         }`}
       >
         <div className="prose prose-invert prose-sm text-white whitespace-pre-wrap break-words">

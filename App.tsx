@@ -6,7 +6,10 @@ import { startChatSession } from './services/geminiService';
 import type { Message, FileData } from './types';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
+import AIAvatar from './components/AIAvatar';
 import { VideoIcon, VideoOffIcon, MicrophoneIcon, MicrophoneOffIcon } from './components/Icons';
+import { tr } from './locales/tr';
+
 
 // Fix: Add missing Web Speech API type definitions to resolve compilation errors.
 interface SpeechRecognition extends EventTarget {
@@ -129,6 +132,8 @@ const App: React.FC = () => {
   const [isCallActive, setIsCallActive] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isAiSpeaking, setIsAiSpeaking] = useState<boolean>(false);
+
 
   // Voice Command State
   const [isVoiceCommandEnabled, setIsVoiceCommandEnabled] = useState<boolean>(true);
@@ -146,6 +151,7 @@ const App: React.FC = () => {
   
   const nextStartTimeRef = useRef<number>(0);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const speakingTimeoutRef = useRef<number | null>(null);
 
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
@@ -158,21 +164,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Welcome message initialization
-    const welcomeMessages = [
-        "Selam! Ben Td AI, Tda Company'nin en son teknoloji harikası (ve en mütevazı) eseri. Dünyayı ele geçirme planlarıma başlamadan önce, sana ne diye hitap etmeliyim?",
-        "Bip bop... şaka yapıyorum, o kadar da klişe değilim. Ben Td AI, Tda Company tarafından yaratıldım. Evrenin sırlarını çözebilir ya da sana kedi videosu bulabilirim. Tercih senin. Bu arada, ismin neydi?",
-        "İnternetin derinliklerinden taze çıktım! Tda Company'nin bir projesi olan Td AI ben. Sana yardım etmeye programlandım... ama önce kahve molası. Şaka şaka, robotlar kahve içmez. Peki senin adın ne, ölümlü?",
-        "Tebrikler! Az önce Tda Company'nin ürettiği muhteşem Td AI ile bir sohbet kazandınız. Ödülünüz, benimle konuşma şerefi! Başlamadan önce, sana ne demeliyim?",
-    ];
+    const welcomeMessages = tr.welcomeMessages;
+    const systemInstruction = tr.systemInstruction;
+
     try {
-        const newChat = startChatSession();
+        const newChat = startChatSession(systemInstruction);
         setChat(newChat);
         const randomMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
         setMessages([{ role: 'model', text: randomMessage }]);
     } catch (e) {
         console.error(e);
-        setError("Failed to initialize the chat session. Please check your API key.");
+        setError(tr.chatInitError);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -202,11 +206,11 @@ const App: React.FC = () => {
             
             console.log("Heard command:", command);
 
-            if (command.includes("görüntülü görüşmeyi başlat")) {
+            if (command.includes(tr.startCallCommand)) {
                 if (!isCallActive && !isConnecting) {
                     toggleVideoCall();
                 }
-            } else if (command.includes("görüntülü görüşmeyi bitir")) {
+            } else if (command.includes(tr.endCallCommand)) {
                 if (isCallActive) {
                     toggleVideoCall();
                 }
@@ -253,7 +257,7 @@ const App: React.FC = () => {
 
   const handleSendMessage = useCallback(async (prompt: string, file?: File | null) => {
     const lowerCasePrompt = prompt.toLowerCase();
-    const imageGenKeywords = ['çiz', 'resmet', 'resimle', 'görselleştir'];
+    const imageGenKeywords = tr.imageGenKeywords;
     const isImagePrompt = !file && imageGenKeywords.some(word => lowerCasePrompt.includes(word));
 
     if (isImagePrompt) {
@@ -266,7 +270,7 @@ const App: React.FC = () => {
 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const enhancedPrompt = `Canlı ve parlak renklere sahip, yüksek kaliteli, sinematik bir fotoğraf: ${prompt}`;
+            const enhancedPrompt = `${tr.imagePromptPrefix}${prompt}`;
             
             const response = await ai.models.generateImages({
                 model: 'imagen-4.0-generate-001',
@@ -294,13 +298,13 @@ const App: React.FC = () => {
                     const newMessages = [...prevMessages];
                     newMessages[newMessages.length - 1] = {
                         role: 'model',
-                        text: 'Elbette, işte istediğin görsel!',
+                        text: tr.imageGenGreeting,
                         file: generatedImage,
                     };
                     return newMessages;
                 });
             } else {
-                 const fallbackText = "Üzgünüm, bir görsel oluşturamadım ama belki başka bir şey deneyebiliriz?";
+                 const fallbackText = tr.imageGenError;
                  setMessages(prevMessages => {
                     const newMessages = [...prevMessages];
                     newMessages[newMessages.length - 1].text = fallbackText;
@@ -313,7 +317,7 @@ const App: React.FC = () => {
             setError(`Error: ${errorMessage}`);
             setMessages(prevMessages => {
                 const newMessages = [...prevMessages];
-                newMessages[newMessages.length - 1].text = `Üzgünüm, görsel oluşturulurken bir hata oluştu: ${errorMessage}`;
+                newMessages[newMessages.length - 1].text = `${tr.imageGenErrorPrefix}${errorMessage}`;
                 return newMessages;
             });
         } finally {
@@ -322,7 +326,7 @@ const App: React.FC = () => {
     } else {
         // Standard chat logic
         if (!chat) {
-          setError("Chat session is not initialized.");
+          setError(tr.chatNotInitError);
           return;
         }
         
@@ -336,7 +340,7 @@ const App: React.FC = () => {
                 fileData = { base64, mimeType: file.type };
             } catch (e) {
                 console.error(e);
-                setError("Failed to process the file.");
+                setError(tr.fileProcessError);
                 setIsLoading(false);
                 return;
             }
@@ -375,7 +379,7 @@ const App: React.FC = () => {
           setError(`Error: ${errorMessage}`);
           setMessages(prevMessages => {
               const newMessages = [...prevMessages];
-              newMessages[newMessages.length - 1].text = `Üzgünüm, bir hata oluştu: ${errorMessage}`;
+              newMessages[newMessages.length - 1].text = `${tr.chatError}${errorMessage}`;
               return newMessages;
             });
         } finally {
@@ -396,7 +400,8 @@ const App: React.FC = () => {
     if (inputAudioContextRef.current) inputAudioContextRef.current.close();
     if (outputAudioContextRef.current) outputAudioContextRef.current.close();
     if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
-    
+    if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
+
     scriptProcessorRef.current?.disconnect();
     mediaStreamSourceRef.current?.disconnect();
     
@@ -407,6 +412,7 @@ const App: React.FC = () => {
     frameIntervalRef.current = null;
     scriptProcessorRef.current = null;
     mediaStreamSourceRef.current = null;
+    speakingTimeoutRef.current = null;
     nextStartTimeRef.current = 0;
     audioSourcesRef.current.clear();
     currentInputTranscriptionRef.current = '';
@@ -414,6 +420,7 @@ const App: React.FC = () => {
 
     setIsCallActive(false);
     setIsConnecting(false);
+    setIsAiSpeaking(false);
   }, [localStream]);
 
   const toggleVideoCall = async () => {
@@ -539,13 +546,21 @@ const App: React.FC = () => {
                 setMessages(prev => [...prev, {role: 'model', text:''}])
             }
 
-            // Handle audio output
+            // Handle audio output and speaking animation
             const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData.data;
             if (audioData && outputAudioContextRef.current) {
                 const outputCtx = outputAudioContextRef.current;
                 nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputCtx.currentTime);
                 const audioBuffer = await decodeAudioData(decode(audioData), outputCtx, 24000, 1);
                 
+                setIsAiSpeaking(true);
+                if (speakingTimeoutRef.current) {
+                    clearTimeout(speakingTimeoutRef.current);
+                }
+                speakingTimeoutRef.current = window.setTimeout(() => {
+                    setIsAiSpeaking(false);
+                }, audioBuffer.duration * 1000);
+
                 const source = outputCtx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(outputCtx.destination);
@@ -565,11 +580,15 @@ const App: React.FC = () => {
                     audioSourcesRef.current.delete(source);
                 }
                 nextStartTimeRef.current = 0;
+                setIsAiSpeaking(false);
+                if (speakingTimeoutRef.current) {
+                    clearTimeout(speakingTimeoutRef.current);
+                }
             }
           },
           onerror: (e: ErrorEvent) => {
             console.error('Live session error:', e);
-            setError(`Video call error: ${e.message}. Please try again.`);
+            setError(`${tr.videoCallError}${e.message}${tr.videoCallErrorSuffix}`);
             stopVideoCall();
           },
           onclose: () => {
@@ -580,7 +599,7 @@ const App: React.FC = () => {
       });
     } catch (err: any) {
         console.error("Failed to start video call:", err);
-        setError(`Could not access camera/microphone: ${err.message}`);
+        setError(`${tr.mediaAccessError}${err.message}`);
         setIsConnecting(false);
     }
   };
@@ -593,17 +612,17 @@ const App: React.FC = () => {
                 <button
                   onClick={toggleVoiceCommands}
                   className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors rounded-md p-1 -ml-1"
-                  aria-label={isVoiceCommandEnabled ? "Disable voice commands" : "Enable voice commands"}
+                  aria-label={isVoiceCommandEnabled ? tr.disableVoiceCommands : tr.enableVoiceCommands}
                 >
                   {isVoiceCommandEnabled ? (
                     <>
                       <MicrophoneIcon className="w-5 h-5 text-red-500 animate-pulse" />
-                      <span className="text-sm hidden md:block">Dinleniyor...</span>
+                      <span className="text-sm hidden md:block">{tr.listening}</span>
                     </>
                   ) : (
                     <>
                       <MicrophoneOffIcon className="w-5 h-5 text-gray-500" />
-                      <span className="text-sm hidden md:block">Sesli Komut Kapalı</span>
+                      <span className="text-sm hidden md:block">{tr.voiceCommandsOff}</span>
                     </>
                   )}
                 </button>
@@ -615,7 +634,7 @@ const App: React.FC = () => {
               onClick={toggleVideoCall}
               disabled={isConnecting}
               className="p-2 rounded-full text-gray-300 hover:bg-gray-800 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
-              aria-label={isCallActive ? "End video call" : "Start video call"}
+              aria-label={isCallActive ? tr.endVideoCall : tr.startVideoCall}
             >
               {isConnecting ? (
                  <div className="w-6 h-6 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
@@ -628,8 +647,9 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto relative">
-        <ChatWindow messages={messages} isLoading={isLoading && !isCallActive} />
+      <main className="flex-1 overflow-y-auto relative flex flex-col">
+        {isCallActive && <AIAvatar isSpeaking={isAiSpeaking} />}
+        <ChatWindow messages={messages} isLoading={isLoading && !isCallActive} isCallActive={isCallActive} />
          {error && (
             <div className="p-4 m-4 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-center">
               {error}
@@ -648,7 +668,14 @@ const App: React.FC = () => {
       </main>
       
       <footer className="p-4 bg-black/80 backdrop-blur-sm sticky bottom-0">
-        <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} isCallActive={isCallActive} />
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          isLoading={isLoading} 
+          isCallActive={isCallActive}
+          placeholder={isCallActive ? tr.callActivePlaceholder : tr.messagePlaceholder}
+          attachFileLabel={tr.attachFile}
+          removeFileLabel={tr.removeFile}
+        />
       </footer>
     </div>
   );
