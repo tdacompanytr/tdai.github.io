@@ -35,7 +35,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
       {messages.map((msg, index) => (
         <MessageBubble key={index} message={msg} />
       ))}
-      {isLoading && messages[messages.length - 1]?.role === 'user' && <TypingIndicator />}
+      {isLoading && <TypingIndicator />}
     </div>
   );
 };

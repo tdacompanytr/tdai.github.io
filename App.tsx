@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Chat } from '@google/genai';
+import { Chat, Part } from '@google/genai';
 import { startChatSession } from './services/geminiService';
-import type { Message } from './types';
+import type { Message, FileData } from './types';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      // result is "data:mime/type;base64,..."
+      // we just want the part after the comma
+      const result = (reader.result as string).split(',')[1];
+      resolve(result);
+    };
+    reader.onerror = (error) => reject(error);
+  });
 
 const App: React.FC = () => {
   const [chat, setChat] = useState<Chat | null>(null);
@@ -35,23 +48,46 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleSendMessage = useCallback(async (prompt: string) => {
+  const handleSendMessage = useCallback(async (prompt: string, file?: File | null) => {
     if (!chat) {
       setError("Chat session is not initialized.");
       return;
     }
     
-    setError(null);
     setIsLoading(true);
+    setError(null);
 
-    const userMessage: Message = { role: 'user', text: prompt };
+    let fileData: FileData | undefined = undefined;
+    if (file) {
+        try {
+            const base64 = await fileToBase64(file);
+            fileData = { base64, mimeType: file.type };
+        } catch (e) {
+            console.error(e);
+            setError("Failed to process the file.");
+            setIsLoading(false);
+            return;
+        }
+    }
+
+    const userMessage: Message = { role: 'user', text: prompt, file: fileData };
     setMessages(prevMessages => [...prevMessages, userMessage]);
 
     // Add a placeholder for the model's response
     setMessages(prevMessages => [...prevMessages, { role: 'model', text: '' }]);
 
     try {
-      const stream = await chat.sendMessageStream({ message: prompt });
+      const messageParts: (string | Part)[] = [{ text: prompt }];
+      if (fileData) {
+        messageParts.push({
+            inlineData: {
+                data: fileData.base64,
+                mimeType: fileData.mimeType,
+            }
+        });
+      }
+
+      const stream = await chat.sendMessageStream({ message: messageParts });
       
       let fullResponse = '';
       for await (const chunk of stream) {

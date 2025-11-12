@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SendIcon } from './Icons';
+import { SendIcon, PaperclipIcon, XIcon } from './Icons';
 
 interface ChatInputProps {
-  onSendMessage: (prompt: string) => void;
+  onSendMessage: (prompt: string, file?: File | null) => void;
   isLoading: boolean;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
   const [input, setInput] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -18,12 +21,28 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
       textarea.style.height = `${scrollHeight}px`;
     }
   }, [input]);
+
+  useEffect(() => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  }, [file]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onSendMessage(input.trim());
+    if ((input.trim() || file) && !isLoading) {
+      onSendMessage(input.trim(), file);
       setInput('');
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -34,30 +53,79 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="flex items-end space-x-3 bg-gray-950 p-3 rounded-2xl border border-gray-800 shadow-inner">
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Mesajınızı buraya yazın..."
-        rows={1}
-        className="flex-1 bg-transparent p-2 text-white placeholder-gray-400 focus:outline-none resize-none max-h-40"
-        disabled={isLoading}
-      />
-      <button
-        type="submit"
-        disabled={isLoading || !input.trim()}
-        className="w-10 h-10 flex-shrink-0 bg-red-600 rounded-full flex items-center justify-center text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-400"
-      >
-        {isLoading ? (
-          <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-        ) : (
-          <SendIcon className="w-5 h-5" />
-        )}
-      </button>
-    </form>
+    <div className="bg-gray-950 p-3 rounded-2xl border border-gray-800 shadow-inner">
+      {filePreview && (
+        <div className="relative mb-2 w-32 h-32">
+          <button 
+            onClick={handleRemoveFile} 
+            className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full p-1 z-10 hover:bg-gray-700"
+            aria-label="Remove file"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+          {file?.type.startsWith('image/') ? (
+            <img src={filePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+          ) : (
+            <video src={filePreview} className="w-full h-full object-cover rounded-lg" controls />
+          )}
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="flex items-end space-x-3">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept="image/*,video/*"
+          disabled={isLoading}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+          className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 disabled:cursor-not-allowed transition-colors"
+          aria-label="Attach file"
+        >
+          <PaperclipIcon className="w-5 h-5" />
+        </button>
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Mesajınızı buraya yazın..."
+          rows={1}
+          className="flex-1 bg-transparent p-2 text-white placeholder-gray-400 focus:outline-none resize-none max-h-40"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading || (!input.trim() && !file)}
+          className="w-10 h-10 flex-shrink-0 bg-red-600 rounded-full flex items-center justify-center text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+          ) : (
+            <SendIcon className="w-5 h-5" />
+          )}
+        </button>
+      </form>
+    </div>
   );
 };
 

@@ -1,10 +1,26 @@
 import React from 'react';
-import type { Message } from '../types';
+import type { Message, FileData } from '../types';
 import { UserIcon, BotIcon } from './Icons';
 
 interface MessageBubbleProps {
   message: Message;
 }
+
+const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
+  const src = `data:${file.mimeType};base64,${file.base64}`;
+  const isImage = file.mimeType.startsWith('image/');
+  const isVideo = file.mimeType.startsWith('video/');
+
+  return (
+    <div className="mt-2 rounded-lg overflow-hidden">
+      {isImage ? (
+        <img src={src} alt="User upload" className="max-w-xs max-h-64 object-contain" />
+      ) : isVideo ? (
+        <video src={src} controls className="max-w-xs max-h-64" />
+      ) : null}
+    </div>
+  );
+};
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.role === 'user';
@@ -25,7 +41,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     });
   };
 
-  if (!message.text && message.role === 'model') {
+  if (!message.text && message.role === 'model' && !message.file) {
       return null;
   }
 
@@ -42,7 +58,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         }`}
       >
         <div className="prose prose-invert prose-sm text-white whitespace-pre-wrap break-words">
-            {renderText(message.text)}
+            {message.file && <MediaPreview file={message.file} />}
+            {message.text && renderText(message.text)}
         </div>
       </div>
     </div>
