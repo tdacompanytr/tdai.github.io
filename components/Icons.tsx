@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const UserIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -128,5 +129,48 @@ export const VideoOffIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
         <path d="M16 16.5V14l4 2.5v-7L16 12v-1.5" />
         <path d="M2 12.5V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-1.17 1.82" />
         <path d="m2 2 20 20" />
+    </svg>
+);
+
+export const MicrophoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg 
+        {...props}
+        xmlns="http://www.w3.org/2000/svg" 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+);
+
+export const MicrophoneOffIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg 
+        {...props}
+        xmlns="http://www.w3.org/2000/svg" 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        <line x1="2" y1="2" x2="22" y2="22" />
+        <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+        <path d="M5 10v2a7 7 0 0 0 12 5" />
+        <path d="M12 1a3 3 0 0 0-3 3v1" />
+        <path d="M9 4a3 3 0 0 0 3 3v5" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
     </svg>
 );

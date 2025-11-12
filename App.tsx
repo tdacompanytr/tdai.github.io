@@ -6,7 +6,41 @@ import { startChatSession } from './services/geminiService';
 import type { Message, FileData } from './types';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
-import { VideoIcon, VideoOffIcon } from './components/Icons';
+import { VideoIcon, VideoOffIcon, MicrophoneIcon, MicrophoneOffIcon } from './components/Icons';
+
+// Fix: Add missing Web Speech API type definitions to resolve compilation errors.
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  lang: string;
+  interimResults: boolean;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onend: () => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  start: () => void;
+  stop: () => void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  readonly [index: number]: SpeechRecognitionResult;
+  readonly length: number;
+}
+
+interface SpeechRecognitionResult {
+  readonly [index: number]: SpeechRecognitionAlternative;
+  readonly length: number;
+}
+
+interface SpeechRecognitionAlternative {
+  readonly transcript: string;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+}
 
 // --- Helper Functions ---
 const fileToBase64 = (file: File): Promise<string> =>
@@ -96,6 +130,9 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
+  // Voice Command State
+  const [isVoiceCommandEnabled, setIsVoiceCommandEnabled] = useState<boolean>(true);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -112,6 +149,12 @@ const App: React.FC = () => {
 
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
+  
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const toggleVoiceCommands = () => {
+    setIsVoiceCommandEnabled(prev => !prev);
+  };
 
   useEffect(() => {
     // Welcome message initialization
@@ -138,6 +181,74 @@ const App: React.FC = () => {
         videoRef.current.srcObject = localStream;
     }
   }, [localStream]);
+
+  // Effect for handling voice commands
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("Speech Recognition not supported by this browser.");
+      return;
+    }
+
+    if (!recognitionRef.current) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.lang = 'tr-TR';
+        recognition.interimResults = false;
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const last = event.results.length - 1;
+            const command = event.results[last][0].transcript.toLowerCase().trim();
+            
+            console.log("Heard command:", command);
+
+            if (command.includes("görüntülü görüşmeyi başlat")) {
+                if (!isCallActive && !isConnecting) {
+                    toggleVideoCall();
+                }
+            } else if (command.includes("görüntülü görüşmeyi bitir")) {
+                if (isCallActive) {
+                    toggleVideoCall();
+                }
+            }
+        };
+        
+        recognition.onend = () => {
+            if (isVoiceCommandEnabled && !isCallActive && !isConnecting) {
+                try {
+                   recognition.start();
+                } catch (e) {
+                   console.error("Error restarting speech recognition:", e);
+                }
+            }
+        };
+        
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+             console.error("Speech recognition error:", event.error);
+        };
+
+        recognitionRef.current = recognition;
+    }
+    
+    const recognition = recognitionRef.current;
+    
+    try {
+        if (isVoiceCommandEnabled && !isCallActive && !isConnecting) {
+            recognition.start();
+        } else {
+            recognition.stop();
+        }
+    } catch (e: any) {
+        if (e.name !== 'InvalidStateError') {
+             console.error("Could not start/stop speech recognition:", e);
+        }
+    }
+    
+    return () => {
+      recognition?.stop();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCallActive, isConnecting, isVoiceCommandEnabled]);
 
 
   const handleSendMessage = useCallback(async (prompt: string, file?: File | null) => {
@@ -408,7 +519,27 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-black text-white font-sans">
       <header className="flex items-center justify-between p-4 bg-gray-950/50 backdrop-blur-sm border-b border-gray-800 shadow-lg sticky top-0 z-10">
-        <div className="flex-1"></div>
+        <div className="flex-1 flex items-center">
+            {!isCallActive && !isConnecting && (
+                <button
+                  onClick={toggleVoiceCommands}
+                  className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors rounded-md p-1 -ml-1"
+                  aria-label={isVoiceCommandEnabled ? "Disable voice commands" : "Enable voice commands"}
+                >
+                  {isVoiceCommandEnabled ? (
+                    <>
+                      <MicrophoneIcon className="w-5 h-5 text-red-500 animate-pulse" />
+                      <span className="text-sm hidden md:block">Dinleniyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MicrophoneOffIcon className="w-5 h-5 text-gray-500" />
+                      <span className="text-sm hidden md:block">Sesli Komut Kapalı</span>
+                    </>
+                  )}
+                </button>
+            )}
+        </div>
         <h1 className="text-2xl font-bold tracking-wider text-red-500 text-center flex-1">Td AI</h1>
         <div className="flex-1 flex justify-end">
             <button
