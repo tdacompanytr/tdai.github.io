@@ -24,4 +24,7 @@ export async function handler(event) {
       output: data.candidates?.[0]?.content?.parts?.[0]?.text || "Yanıt yok"
     })
   };
+
 }
+const apiKey = process.env.API_KEY;
+console.log(apiKey); // undefined gelirse tekrar bakarız
