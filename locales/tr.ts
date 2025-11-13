@@ -1,5 +1,6 @@
 export const tr = {
   common: {
+    configErrorTitle: 'Yapılandırma Hatası',
     generalApiError: "Aga sunucularla konuşurken bir şeyler ters gitti. İnternet bağlantını kontrol edip tekrar dener misin? Bazen böyle aksilikler olur, canını sıkma.",
     apiKeyMissingError: "API Anahtarı bulunamadı. Uygulamanın çalışması için bir Google API anahtarı yapılandırılmalıdır. (Geliştirici Notu: process.env.API_KEY eksik.)",
     fileProcessError: 'Dosya işlenemedi.',
