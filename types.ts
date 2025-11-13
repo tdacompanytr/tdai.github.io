@@ -9,3 +9,14 @@ export interface Message {
   text: string;
   file?: FileData;
 }
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+}
+
+export interface UserProfile {
+  name: string;
+  avatar: string | null; // base64 string
+}

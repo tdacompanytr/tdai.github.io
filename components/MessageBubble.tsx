@@ -8,6 +8,7 @@ import { tr } from '../locales/tr';
 interface MessageBubbleProps {
   message: Message;
   isCallActive?: boolean;
+  userAvatar: string | null;
 }
 
 const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
@@ -29,7 +30,7 @@ const MediaPreview: React.FC<{ file: FileData }> = ({ file }) => {
   );
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCallActive = false }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCallActive = false, userAvatar }) => {
   const isUser = message.role === 'user';
 
   const [translatedText, setTranslatedText] = useState<string | null>(null);
@@ -126,8 +127,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCallActive = f
 
   return (
     <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser ? 'bg-red-600' : 'bg-red-950'}`}>
-        {isUser ? <UserIcon className="w-5 h-5" /> : <BotIcon className="w-5 h-5 text-white" />}
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden ${isUser ? 'bg-red-600' : 'bg-red-950'}`}>
+        {isUser ? (
+            userAvatar ? (
+                <img src={`data:image/png;base64,${userAvatar}`} alt={tr.userAvatar} className="w-full h-full object-cover" />
+            ) : (
+                <UserIcon className="w-5 h-5" />
+            )
+        ) : (
+            <BotIcon className="w-5 h-5 text-white" />
+        )}
       </div>
       <div className="relative group">
         <div

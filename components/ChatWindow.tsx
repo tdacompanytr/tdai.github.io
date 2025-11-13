@@ -7,6 +7,7 @@ interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
   isCallActive?: boolean;
+  userAvatar: string | null;
 }
 
 const TypingIndicator: React.FC = () => (
@@ -22,7 +23,7 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isCallActive = false }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isCallActive = false, userAvatar }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,8 +38,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isCallActi
 
   return (
     <div ref={scrollRef} className={`overflow-y-auto ${containerClasses}`}>
-      {messages.map((msg, index) => (
-        <MessageBubble key={index} message={msg} isCallActive={isCallActive} />
+      {messages
+        .filter(msg => !(msg.role === 'model' && !msg.text && !msg.file)) // Don't render empty model messages
+        .map((msg, index) => (
+          <MessageBubble key={index} message={msg} isCallActive={isCallActive} userAvatar={userAvatar} />
       ))}
       {isLoading && <TypingIndicator />}
     </div>
